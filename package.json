@@ -1,0 +1,29 @@
+{
+  "name": "attckmap",
+  "version": "1.0.0",
+  "description": "livemapdemo ===========",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Quizp2p/livemapdemo.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Quizp2p/livemapdemo/issues"
+  },
+  "homepage": "https://github.com/Quizp2p/livemapdemo#readme",
+  "devDependencies": {
+    "browser-sync": "^2.12.8",
+    "del": "^2.2.0",
+    "gulp": "^3.9.1",
+    "gulp-concat": "^2.6.0",
+    "gulp-rename": "^1.2.2",
+    "gulp-sourcemaps": "^1.6.0",
+    "gulp-uglify": "^1.5.3",
+    "http-proxy-middleware": "^0.15.0"
+  }
+}

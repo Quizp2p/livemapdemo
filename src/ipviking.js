@@ -63,7 +63,10 @@ function hideMessage () {
         psk: "echo-protocol",
         //wsHost: "ws://64.19.78.244:443/",
         //psk: "18c989796c61724d4661b019f2779848dd69ae62",
-        wsTimeout: 30000
+        wsTimeout: 30000,
+
+        // Web Worker settings
+        workerFile: "courier.js",
     };
 
     /*
@@ -74,8 +77,8 @@ function hideMessage () {
     var timestampedData = [];
 
     function prune () {
-        // using the lodash library, where _.select implements binary search to find  start of range 
-        // in logarithmic time                                                                                                                             
+        // using the lodash library, where _.select implements binary search to find  start of range
+        // in logarithmic time
 
         var now = new Date().getTime() / 1000;
 
@@ -92,7 +95,7 @@ function hideMessage () {
         }
 
         for (var n = 0; n < expiredData.length; n++) {
-            // todo:                                                                                                                                                   //statsManager.remove(timestampData[n]);                                                                                                       
+            // todo:                                                                                                                                                   //statsManager.remove(timestampData[n]);
             for (var model in linkModels) {
                 linkModels[model].remove(expiredData[n]);
             }
@@ -307,7 +310,7 @@ function hideMessage () {
                 imgData, i;
 
             imgCtx.drawImage(particle, 0, 0);
-            
+
             //if(particle.width > self.innerWidth){particle.width=self.innerWidth;} if(particle.width < 1){particle.width=1;}
             //if(particle.height > self.innerHeight){particle.height=self.innerHeight;} if(particle.height < 1){particle.height=1;}
             imgData = imgCtx.getImageData(2, 2,64,64);
@@ -384,7 +387,7 @@ function hideMessage () {
                         break;
                     }
                 }
-                
+
                 for (var i in this.links) {
                     if (this.links[i].pruneTS > now) {
                         if (i > 0) {
@@ -613,20 +616,20 @@ function hideMessage () {
             if (!(origin.country in this._links)) {
                 this._links[origin.country] = {};
             }
-            
+
             if (!(origin.city in this._links[origin.country])) {
                 this._links[origin.country][origin.city] = {};
             }
-            
+
 	        var originLinks = this._links[origin.country][origin.city];
             if (!(target.country in originLinks)) {
                 originLinks[target.country] = {};
             }
-            
+
             if (!(target.city in originLinks[target.country])) {
                 originLinks[target.country][target.city] = {};
             }
-            
+
 	        var targetLinks = originLinks[target.country][target.city]
             if (!(port in targetLinks)) {
                 targetLinks[port] = 1;
@@ -925,7 +928,7 @@ function hideMessage () {
             this._iso2 = {};
             this._iso3 = {};
             this._countries = {};
-            for (var i = 0; i < raw.length; i++) { this.push(raw[i]); };
+            for (var i = 0; i < +raw.length; i++) { this.push(raw[i]); };
         },
 
         getByIso2: function(iso2) {
@@ -1233,11 +1236,11 @@ function hideMessage () {
             }
 
             var that = this;
-            
+
             var nextFrame = 1000 / 30 - (new Date().getTime() - this.drawStart);
 
             if (nextFrame < 0) nextFrame = 0;
-            
+
             this._timeout = setTimeout(function() { that.redraw() }, nextFrame);
         },
 
@@ -1744,8 +1747,10 @@ function hideMessage () {
 
     var wsDiscTime = 0;
 
-    function start(loc, psk) {
-        var webSocket = new WebSocket(loc || settings.wsHost);
+    function start(workerFile) {
+        // var webSocket = new WebSocket(loc || settings.wsHost);
+
+        var worker = new Worker(workerFile || settings.workerFile);
 
         var pauser = {
             elt: d3.selectAll(".controls"),
@@ -1794,94 +1799,208 @@ function hideMessage () {
                     this.unbuffer();
                 } else {
                     button.classed("icon-pause", false);
-                    button.classed("icon-play", true);                    
+                    button.classed("icon-play", true);
                     this.elt.node().dataset.paused = "true";
                 }
             }
-        }
+        };
         pauser.elt.on("click", function() { pauser.toggle(); });
 
-        webSocket.onopen = function() {
-            wsDiscTime = 0;
-            d3.select("#events-data").selectAll("tr.row").remove(); 
-            webSocket.send(psk || settings.psk);            
-        };
+        // webSocket.onopen = function() {
+        //     wsDiscTime = 0;
+        //     d3.select("#events-data").selectAll("tr.row").remove();
+        //     webSocket.send(psk || settings.psk);
+        // };
 
-        webSocket.onmessage = function(evt) {
+        worker.onmessage = function (evt) {
             if (!evt) {
                 return;
+            };
+
+            var self = this;
+
+            var data = evt.data;
+            switch (data.status) {
+                case 'aloha':
+                    startWorker(data);
+                    break;
+                case 'data':
+                    pushAttack(data);
+                    break;
+                case 'error':
+                    restartWorker(data);
+                    break;
+                default:
+                    logUnknownStatus(data);
+            };
+
+            function startWorker(data) {
+                d3.select("#events-data").selectAll("tr.row").remove();
+                self.postMessage({'cmd': 'start', 'msg': {}});
             }
 
+            function pushAttack(data) {
+                // Parse the json to a js obj and clean the data
+                var datum = eval("(" + data.content + ")");
 
-            // Parse the json to a js obj and clean the data
-            var datum = eval("(" + evt.data + ")");
+                if (datum.longitude == 0 && datum.latitude == 0) {
+                    datum.longitude = -5;
+                    datum.latitude = -50;
+                };
 
-            if (datum.longitude == 0 && datum.latitude == 0) {
-                datum.longitude = -5;
-                datum.latitude = -50;
+                var startLoc = projection([datum.longitude, datum.latitude]);
+                var endLoc = projection([datum.longitude2, datum.latitude2]);
+
+                if (datum.error) {
+                    showMessage("ERROR: " + datum.error.msg);
+                };
+
+                for (var prop in datum) {
+                    if (settings.numberProps.indexOf(prop) !== -1) {
+                        datum[prop] = Number(datum[prop]);
+                    }
+                };
+
+                function cleanCountry(country) {
+                    // Clean incoming country code
+                    if (country === "USA") {
+                        return "US";
+                    }
+                    return country
+                };
+
+                datum.country = cleanCountry(datum.country);
+                datum.country2 = cleanCountry(datum.country2);
+
+                datum.service = datum.type;
+                datum.cx = startLoc[0];
+                datum.cy = startLoc[1];
+                datum.x = startLoc[0];
+                datum.y = startLoc[1];
+                datum.targetX = endLoc[0];
+                datum.targetY = endLoc[1];
+                datum.id = getID();
+                datum.datetime = (new Date()).toISOString()
+    	        .replace("T", "&ensp;")
+    	        .slice(0, -2);
+
+                console.log(datum);
+                pauser.push(datum);
             }
 
-            var startLoc = projection([datum.longitude, datum.latitude]);
-            var endLoc = projection([datum.longitude2, datum.latitude2]);
+            function restartWorker(data) {
+                //try to reconnect in 5 seconds
+                var interval = 500;
 
-            if (datum.error) {
-                showMessage("ERROR: " + datum.error.msg);
-            }
+                wsDiscTime += 500;
 
-            for (var prop in datum) {
-                if (settings.numberProps.indexOf(prop) !== -1) {
-                    datum[prop] = Number(datum[prop]);
+                d3.select("#events-data").selectAll("tr.row").remove();
+                d3.select("#events-data").append("tr").attr('class', 'row').html("<td colspan='7'><img src='images/loading.gif' style='margin-top: 6px;'/>&nbsp;<span style='display: inline-block; height: 25px; vertical-align: middle;'>Loading...</span></td>");
+
+                if (wsDiscTime > settings.wsTimeout) {
+                    showMessage("We are having difficulties in the Web Worker. We will continue trying...");
+                    wsDiscTime = 0;
                 }
+
+                setTimeout(function(){
+                    self.terminate();
+                    console.log("websocket closed, reconnecting in " + interval + "ms");
+                    start(workerFile);
+                }, interval);
             }
 
-            function cleanCountry(country) {
-                // Clean incoming country code
-                if (country === "USA") {
-                    return "US";
-                }
-                return country
+            function logUnknownStatus(data) {
+                console.log('Unknown status: ');
+                console.log(data);
             }
-
-            datum.country = cleanCountry(datum.country);
-            datum.country2 = cleanCountry(datum.country2);
-
-            datum.service = datum.type;
-            datum.cx = startLoc[0];
-            datum.cy = startLoc[1];
-            datum.x = startLoc[0];
-            datum.y = startLoc[1];
-            datum.targetX = endLoc[0];
-            datum.targetY = endLoc[1];
-            datum.id = getID();
-            datum.datetime = (new Date()).toISOString()
-	        .replace("T", "&ensp;")
-	        .slice(0, -2);
-
-            console.log(datum);
-            pauser.push(datum);
         };
 
-        webSocket.onclose = function() {
-            //try to reconnect in 5 seconds
-            var interval = 500;
+        worker.onerror = function (evt) {
+            console.log([
+                'ERROR: Line ', evt.lineno, ' in ', evt.filename, ': ', evt.message
+            ].join(''));
 
-            wsDiscTime += 500;
+        }
 
-            d3.select("#events-data").selectAll("tr.row").remove(); 
-            d3.select("#events-data").append("tr").attr('class', 'row').html("<td colspan='7'><img src='images/loading.gif' style='margin-top: 6px;'/>&nbsp;<span style='display: inline-block; height: 25px; vertical-align: middle;'>Loading...</span></td>");
+        worker.postMessage({'cmd': 'ping', 'msg': ''});
 
-            if (wsDiscTime > settings.wsTimeout) {
-                showMessage("We are having difficulties in the WebSocket connectivity. We will continue trying...");
-                wsDiscTime = 0;
-            }
+        // webSocket.onmessage = function(evt) {
+        //     if (!evt) {
+        //         return;
+        //     }
+        //
+        //
+        //     // Parse the json to a js obj and clean the data
+        //     var datum = eval("(" + evt.data + ")");
+        //
+        //     if (datum.longitude == 0 && datum.latitude == 0) {
+        //         datum.longitude = -5;
+        //         datum.latitude = -50;
+        //     }
+        //
+        //     var startLoc = projection([datum.longitude, datum.latitude]);
+        //     var endLoc = projection([datum.longitude2, datum.latitude2]);
+        //
+        //     if (datum.error) {
+        //         showMessage("ERROR: " + datum.error.msg);
+        //     }
+        //
+        //     for (var prop in datum) {
+        //         if (settings.numberProps.indexOf(prop) !== -1) {
+        //             datum[prop] = Number(datum[prop]);
+        //         }
+        //     }
+        //
+        //     function cleanCountry(country) {
+        //         // Clean incoming country code
+        //         if (country === "USA") {
+        //             return "US";
+        //         }
+        //         return country
+        //     }
+        //
+        //     datum.country = cleanCountry(datum.country);
+        //     datum.country2 = cleanCountry(datum.country2);
+        //
+        //     datum.service = datum.type;
+        //     datum.cx = startLoc[0];
+        //     datum.cy = startLoc[1];
+        //     datum.x = startLoc[0];
+        //     datum.y = startLoc[1];
+        //     datum.targetX = endLoc[0];
+        //     datum.targetY = endLoc[1];
+        //     datum.id = getID();
+        //     datum.datetime = (new Date()).toISOString()
+	    //     .replace("T", "&ensp;")
+	    //     .slice(0, -2);
+        //
+        //     console.log(datum);
+        //     pauser.push(datum);
+        // };
 
-            setTimeout(function(){
-                console.log("websocket closed, reconnecting in " + interval + "ms");
-                start(loc, psk);
-            }, interval);
-        };
+        // webSocket.onclose = function() {
+        //     //try to reconnect in 5 seconds
+        //     var interval = 500;
+        //
+        //     wsDiscTime += 500;
+        //
+        //     d3.select("#events-data").selectAll("tr.row").remove();
+        //     d3.select("#events-data").append("tr").attr('class', 'row').html("<td colspan='7'><img src='images/loading.gif' style='margin-top: 6px;'/>&nbsp;<span style='display: inline-block; height: 25px; vertical-align: middle;'>Loading...</span></td>");
+        //
+        //     if (wsDiscTime > settings.wsTimeout) {
+        //         showMessage("We are having difficulties in the WebSocket connectivity. We will continue trying...");
+        //         wsDiscTime = 0;
+        //     }
+        //
+        //     setTimeout(function(){
+        //         console.log("websocket closed, reconnecting in " + interval + "ms");
+        //         start(loc, psk);
+        //     }, interval);
+        // };
 
-        return webSocket;
+        // return webSocket;
+
+        return worker;
     }
 
     /*
@@ -1891,7 +2010,7 @@ function hideMessage () {
     queue()
         .defer(d3.json, "data/readme-world.json")
         .defer(d3.csv, "data/country-codes.csv")
-        .await(function (error, world, rawPorts, countryCodes) {
+        .await(function (error, world, countryCodes) {
             // Update the countryModel
             countryModel.set(countryCodes);
             countryModel.push({iso2: "O1", country: "Mil/Gov"});
@@ -1911,10 +2030,11 @@ function hideMessage () {
                 .attr("fill", settings.countryColor(0))
                 .attr("d", path);
 
-            ports = parsePorts(rawPorts);
+            // ports = parsePorts(rawPorts);
 
             loadingToggle();
-            var webSocket = start();
+            // var webSocket = start();
+            var webWorker = start();
             nodeModel.start();
             painter.start();
             rateTicker.start();
