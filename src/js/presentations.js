@@ -13,9 +13,12 @@
       state = !state;
     }
   });
+  
+    // lazy-dude's responsive window
   var pymChild =new pym.Child();
   pymChild.sendHeight();
-  // lazy-dude's responsive window
+
+
    d3.select(window).on('resize', function() {
        location.reload();
    });
