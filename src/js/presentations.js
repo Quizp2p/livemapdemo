@@ -13,10 +13,20 @@
       state = !state;
     }
   });
-  
+
     // lazy-dude's responsive window
   var pymChild =new pym.Child();
+  pymChild.onMessage('config', onConfigMesasge);
   pymChild.sendHeight();
+
+  function onConfigMesasge(configJSON) {
+      var config = JSON.parse(configJSON);
+      for (var setting in config) {
+          if (config.hasOwnProperty(setting)) {
+              IPViking.settings[setting] = config[setting];
+          }
+      }
+  }
 
 
    d3.select(window).on('resize', function() {

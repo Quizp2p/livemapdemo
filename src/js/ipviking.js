@@ -2019,7 +2019,7 @@
                 var now = new Date();
                 var lastTimestamp = (settings.lastTimestamp || now.toISOString());
 
-                var searchParam = {
+                var searchParam = (settings.searchParam || {
                     'query': {
                         index: 'saas_*',
                         size: settings.esWindowSize,
@@ -2077,7 +2077,7 @@
                                 value: settings.attackField,},
                         }
                     }
-                };
+                });
 
                 self.postMessage({
                     'cmd': 'start',
