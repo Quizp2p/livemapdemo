@@ -54,7 +54,8 @@ var gulp = require('gulp'),
 	rename = require('gulp-rename'),
     cleanCSS = require('gulp-clean-css'),
 	del = require('del'),
-    proxy = require('http-proxy-middleware');
+    proxy = require('http-proxy-middleware'),
+	runSequence = require('run-sequence');
 
 
 // ////////////////////////////////////////////////
@@ -138,7 +139,7 @@ gulp.task('styles', function() {
 // // /////////////////////////////////////////////
 
 gulp.task('html', function(){
-    gulp.src('src/**/*.html')
+    return gulp.src('src/**/*.html')
     .pipe(reload({stream:true}));
 });
 
@@ -201,8 +202,13 @@ gulp.task('build:remove', ['build:copy'], function () {
 	return del(config.buildFilesFoldersRemove);
 });
 
-gulp.task('build', ['build:copy', 'build:remove']);
+gulp.task('build:make', ['scripts', 'styles', 'html']);
 
+gulp.task('build:move', ['build:copy', 'build:remove']);
+
+gulp.task('build', function (callback) {
+	runSequence(['scripts', 'styles', 'html'],'build:copy', 'build:remove',callback);
+})
 
 // ////////////////////////////////////////////////
 // Watch Tasks
