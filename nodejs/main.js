@@ -1,20 +1,27 @@
 #!/usr/bin/env node
 var ws = require("nodejs-websocket")
-var sleep = require('sleep');
+// var sleep = require('sleep');
 var geoip = require('geoip-lite');
-var _ = require('underscore');
-var mysql      = require('mysql');
-var connection = mysql.createConnection({
-  host     : '127.0.0.1',
-  user     : 'your_user',
-  password : 'your_password',
-  port     : 3306,
-  database : 'your_database'
-});
+// var _ = require('underscore');
+// var mysql      = require('mysql');
+// var connection = mysql.createConnection({
+//   host     : '127.0.0.1',
+//   user     : 'root',
+//   password : '123456',
+//   port     : 3306,
+//   database : 'livemap'
+// });
 var id=0;
 
+var Mock = require('mockjs');
+var Random = Mock.Random;
+var data = Random.ip();
+// 输出结果
+console.log(data);
+
+
 //连接mysql
-connection.connect();
+// connection.connect();
 
 //创建服务器
 var server = ws.createServer(function (conn) {
@@ -29,28 +36,52 @@ var server = ws.createServer(function (conn) {
 
 //发送实时消息
 setInterval(function () {
+
   try {
-    sql = 'SELECT * from td_protectclient_attack_log2 where id>'+id+' and attacktype!=\'360webscan scan\'';
-    if(id==0)
-      sql = sql+' order by id desc limit 100';
-    else
-      sql = sql+'limit 10';
-    connection.query(sql, function(err, rows, fields) {
-      if (err) throw err;
-      _.each(rows, function(a) {
-        //console.log(a);
-        id = Math.max(id, a.id);
-        var attack_ll = geoip.lookup(a.clientip);
-        var host_ll = geoip.lookup(a.ipstr);
-        //console.log(host_ll);
-        server.connections.forEach(function (conn) {
-          if (attack_ll && attack_ll.ll && host_ll && host_ll.ll)
-          conn.sendText('{"latitude":"'+attack_ll.ll[0]+'","longitude":"'+attack_ll.ll[1]+'","countrycode":"'+attack_ll.country+'","country":"'+attack_ll.country+'","city":"'+attack_ll.city+'","latitude2":"'+host_ll.ll[0]+'","longitude2":"'+host_ll.ll[1]+'","countrycode2":"'+host_ll.country+'","country2":"'+host_ll.country+'","city2":"'+host_ll.city+'","type":"'+a.attacktype+'","md5":"'+a.clientip+'","hostip":"'+a.ipstr+'"}');
-        });
-      });
-    });
-  } catch (e) {
+
+      do {
+      var a = {
+		  clientip: Random.ip(),
+		  ipstr: Random.ip(),
+		  attacktype: 'Cybercrime',
+	  };
+          var attack_ll = geoip.lookup(a.clientip);
+          var host_ll = geoip.lookup(a.ipstr);
+      } while (!(attack_ll && attack_ll.ll && attack_ll.city && host_ll && host_ll.ll && host_ll.city));
+
+      var attackType = a.attacktype;
+
+      var destLoc = {
+          lat: attack_ll.ll[0],
+          lon: attack_ll.ll[1],
+          country: attack_ll.country,
+          region: attack_ll.city,
+          ip: a.ipstr
+      };
+      var srcLoc = {
+          lat: host_ll.ll[0],
+          lon: host_ll.ll[1],
+          country: host_ll.country,
+          region: host_ll.city,
+          ip: a.clientip
+      };
+
+      var onLoad = {
+          attackType : attackType,
+          destLoc : destLoc,
+          srcLoc : srcLoc
+      }
+
+	  //console.log(host_ll);
+      var result = JSON.stringify(onLoad);
+      console.log(result);
+	  server.connections.forEach(function (conn) {
+	    // if (attack_ll && attack_ll.ll && attack_ll.city && host_ll && host_ll.ll && host_ll.city)
+	    conn.sendText(result);
+	  });
+      }
+  catch (e) {
     console.log('Error!');
     console.log(e);
   }
-}, 1000);
+}, 500);

@@ -1,11 +1,12 @@
-@import url(http://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800);
-@import url(http://fonts.googleapis.com/css?family=Oswald:400,300,700);
+/*@import url(http://fonts.useso.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800);
+@import url(http://fonts.useso.com/css?family=Oswald:400,300,700);*/
 
 body {
     overflow: hidden;
     margin: 0;
     color: white;
-    background: url(images/DarkNoiseBackground.png);
+    /*background: url(images/DarkNoiseBackground.png);*/
+    background-color: #000;
     font-family: "Oswald", "Open Sans", sans-serif;
 }
 
@@ -38,8 +39,8 @@ h1, h2, h3, h4 {
 }
 
 .blue-bg {
-    background: rgb(0, 78, 176);  
-    background: transparent\9;  
+    background: rgb(0, 78, 176);
+    background: transparent\9;
     background-color: rgb(0, 78, 176, 0.95);
     border-radius: 4px;
     border: 1px solid rgba(0, 78, 176);
@@ -210,8 +211,8 @@ nav ul li a:hover {
 }
 
 .gray-bg {
-    background: rgb(51,51,51);  
-    background: transparent\9;  
+    background: rgb(51,51,51);
+    background: transparent\9;
     background: rgba(51,51,51,0.5);
     border-radius: 4px;
     border: 1px solid rgba(51, 51, 51);
@@ -412,7 +413,7 @@ nav ul li a:hover {
 }
 
 .world {
-    stroke: #555;
+    stroke: #555555;
     stroke-linejoin: round;
 }
 
@@ -677,7 +678,7 @@ footer {
 }
 
 #message-container span {
-    display: inline-block; 
+    display: inline-block;
     vertical-align: middle ;
 }
 
@@ -719,7 +720,7 @@ footer {
 }
 
 #social-icons a:visited {
-    color: white;    
+    color: white;
 }
 
 #unknown-icon {

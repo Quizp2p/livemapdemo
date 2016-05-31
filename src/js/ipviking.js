@@ -1,22 +1,12 @@
-﻿"use strict";
+// ﻿;use strict";
 // http://isc.sans.org
+;
+"use strict";
+// var approvedDomains = ['norse-corp.com', 'mitsui.com', 'mbsd.jp'];
+// if (top.location != self.location && approvedDomains.indexOf(top.location.hostname) === -1) {
+//     top.location = self.location.href
+// }
 
-var approvedDomains = ['norse-corp.com', 'mitsui.com', 'mbsd.jp'];
-if (top.location != self.location && approvedDomains.indexOf(top.location.hostname) === -1) {
-    top.location = self.location.href
-}
-
-var refreshSeconds = 60 * 60 * 6; // 6 hours
-setTimeout("location.reload()", refreshSeconds * 1000);
-
-function showMessage (message) {
-    document.getElementById('message-text').innerHTML = message;
-    document.getElementById('message-panel').style.display = "block";
-}
-
-function hideMessage () {
-    document.getElementById('message-panel').style.display = 'none';
-}
 
 (function(window) {
     var VSN = "1.1";
@@ -30,7 +20,32 @@ function hideMessage () {
     }
     */
 
-    var settings = {
+    var refreshSeconds = 60 * 60 * 6; // 6 hours
+    setTimeout("location.reload()", refreshSeconds * 1000);
+
+    window.showMessage = function(message) {
+        document.getElementById('message-text').innerHTML = message;
+        document.getElementById('message-panel').style.display = "block";
+    }
+
+    window.hideMessage = function() {
+        document.getElementById('message-panel').style.display = 'none';
+    }
+
+    /**
+     * Overwrites obj1's values with obj2's and adds obj2's if non existent in obj1
+     * @param obj1
+     * @param obj2
+     * @returns obj3 a new object based on obj1 and obj2
+     */
+    function merge_options(obj1,obj2){
+        var obj3 = {};
+        for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
+        for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
+        return obj3;
+    }
+
+    var mapSettings = {
         // The data properties to parse into numbers
         numberProps: ["latitude", "longitude", "latitude2", "longitude2"],
         // Flash this color as statistics udpate
@@ -42,7 +57,7 @@ function hideMessage () {
         radius: 5,
         countryColor: d3.scale.log()
             .domain([1, 1200])
-            .range([d3.rgb(30, 30, 30), d3.rgb(30, 65, 140)]),
+            .range([d3.rgb(31, 31, 31), d3.rgb(31, 65, 140)]),
         tableBarWidth: d3.scale.log()
             .domain([1, 500])
             .range([1, 130]),
@@ -57,17 +72,29 @@ function hideMessage () {
         consoleTableRows: 8,
         pruneInterval: 3600,
         dataPruneInterval: 60,
+    };
 
+    var workerSettings = {
         // Websocket settings
-        wsHost: "ws://103.28.11.231:8085/",
+        wsHost: "ws://127.0.0.1:8085/",
         psk: "echo-protocol",
         //wsHost: "ws://64.19.78.244:443/",
         //psk: "18c989796c61724d4661b019f2779848dd69ae62",
         wsTimeout: 30000,
 
         // Web Worker settings
-        workerFile: "courier.js",
-    };
+        workerFile: "worker.min.js",
+        esHost: 'http://' + window.location.host + '/elasticsearch',
+        'date': '20160411',
+        'index_pattern': 'saas_{{YYYYMMDD}}',
+        'esWindowSize': 10,
+        'esTimeout': 5,
+        'attackField': 'analysis',
+        'lastTimestamp' : '2016-04-11T00:00:00',
+        debugMod: false
+    }
+
+    var settings = merge_options(mapSettings, workerSettings);
 
     /*
      * HTML Interface
@@ -76,7 +103,7 @@ function hideMessage () {
 
     var timestampedData = [];
 
-    function prune () {
+    function prune() {
         // using the lodash library, where _.select implements binary search to find  start of range
         // in logarithmic time
 
@@ -176,7 +203,9 @@ function hideMessage () {
     (function() {
         var toggles = d3.selectAll(".toggle");
         var data = toggles[0]
-            .map(function(elt) { return d3.select(elt.getAttribute("data-target")); });
+            .map(function(elt) {
+                return d3.select(elt.getAttribute("data-target"));
+            });
 
         toggles
             .data(data)
@@ -212,7 +241,7 @@ function hideMessage () {
     svg.append("defs")
         .append("filter")
         .attr("id", "blur")
-      .append("feGaussianBlur")
+        .append("feGaussianBlur")
         .attr("stdDeviation", 2);
 
 
@@ -279,7 +308,7 @@ function hideMessage () {
         if (iso === "O1") {
             return "images/militarywhite.svg";
         } else {
-            return "images/flags/" + iso + ".png";
+            return "images/f/" + iso + ".png";
         }
     }
 
@@ -296,16 +325,16 @@ function hideMessage () {
         // Returns a function that will generate colored particles
         var particle = new Image(),
             tempFileCanvas = d3.select("#content")
-              .append("canvas")
-              .attr("class", "buffer")
-              .node();
+            .append("canvas")
+            .attr("class", "buffer")
+            .node();
 
         particle.src = "data:image/png;base64,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";
 
         tempFileCanvas.width = 64;
         tempFileCanvas.height = 64;
 
-        return function (r, g, b, a) {
+        return function(r, g, b, a) {
             var imgCtx = tempFileCanvas.getContext("2d"),
                 imgData, i;
 
@@ -313,12 +342,12 @@ function hideMessage () {
 
             //if(particle.width > self.innerWidth){particle.width=self.innerWidth;} if(particle.width < 1){particle.width=1;}
             //if(particle.height > self.innerHeight){particle.height=self.innerHeight;} if(particle.height < 1){particle.height=1;}
-            imgData = imgCtx.getImageData(2, 2,64,64);
+            imgData = imgCtx.getImageData(2, 2, 64, 64);
 
             //imgData = imgCtx.getImageData(0, 0, particle.width, particle.height);
 
             i = imgData.data.length;
-            while((i -= 4) > -1) {
+            while ((i -= 4) > -1) {
                 imgData.data[i + 3] = imgData.data[i] * a;
                 if (imgData.data[i + 3]) {
                     imgData.data[i] = r;
@@ -371,9 +400,11 @@ function hideMessage () {
             .charge(-10)
             .chargeDistance(50)
             .linkDistance(15)
-            .linkStrength(function(d) { return d.linkStrength || 0.5; }),
+            .linkStrength(function(d) {
+                return d.linkStrength || 0.5;
+            }),
 
-        prune: function () {
+        prune: function() {
             var now = new Date().getTime() / 1000;
 
             if (now - this.lastPrune > 10) {
@@ -400,7 +431,9 @@ function hideMessage () {
         },
 
         get: function(type) {
-            return this.nodes.filter(function(n) { return n.type === type; });
+            return this.nodes.filter(function(n) {
+                return n.type === type;
+            });
         },
 
         _mapKey: function(d) {
@@ -438,9 +471,11 @@ function hideMessage () {
         _getsertAnchorFor: function(attack) {
             // Get the anchor for the given node, inserting it if its not present
             var key = this._mapKey(attack),
-            anchor = this.nodes.filter(function(n) { return n.key === key; })[0];
+                anchor = this.nodes.filter(function(n) {
+                    return n.key === key;
+                })[0];
 
-            if ( anchor ) {
+            if (anchor) {
                 return anchor;
             } else {
                 var newAnchor = {
@@ -476,12 +511,13 @@ function hideMessage () {
                 var key = this._mapKey(attack),
                     that = this;
                 this.nodes.forEach(function(n) {
-                    if ( that._mapKey(n) === key ) {
+                    if (that._mapKey(n) === key) {
                         that.links.push({
                             source: n,
                             target: attack,
                             pruneTS: (new Date()).getTime() / 1000 + settings.dataPruneInterval,
-                            linkStrength: n.service === attack.service ? 0.5 : 0.25});
+                            linkStrength: n.service === attack.service ? 0.5 : 0.25
+                        });
                     }
                 });
             }
@@ -489,34 +525,38 @@ function hideMessage () {
             // Anchor
             var anchor = this._getsertAnchorFor(attack);
             if (this.linkAnchor) {
-                this.links.push({source: anchor, target: attack, linkStrength: 1.0});
+                this.links.push({
+                    source: anchor,
+                    target: attack,
+                    linkStrength: 1.0
+                });
             }
 
             // Target
             if (this.target) {
                 var initialVelocity = -0.0001;
                 var target = {
-                    type: this.TARGETS,
-                    age: 0,
-                    path: [],
-                    h: dist(attack.x, attack.y, attack.targetX, attack.targetY),
-                    id: getID(),
-                    x: attack.x,
-                    y: attack.y,
-                    cx: attack.targetX,
-                    cy: attack.targetY,
-                    startX: attack.x,
-                    startY: attack.y,
-                    city: attack.city2,
-                    country: attack.country2,
-                    theta: Math.atan((attack.targetY - attack.y) /
-                                     (attack.targetX - attack.x)),
+                        type: this.TARGETS,
+                        age: 0,
+                        path: [],
+                        h: dist(attack.x, attack.y, attack.targetX, attack.targetY),
+                        id: getID(),
+                        x: attack.x,
+                        y: attack.y,
+                        cx: attack.targetX,
+                        cy: attack.targetY,
+                        startX: attack.x,
+                        startY: attack.y,
+                        city: attack.city2,
+                        country: attack.country2,
+                        theta: Math.atan((attack.targetY - attack.y) /
+                            (attack.targetX - attack.x)),
 
-                    service: attack.service,
-                    pruneTS: (new Date()).getTime() / 1000 + settings.dataPruneInterval
-                }
-                // this.links.push({source: this._getsertAnchorFor(target),
-                         // target: target, linkStrength: 1.0});
+                        service: attack.service,
+                        pruneTS: (new Date()).getTime() / 1000 + settings.dataPruneInterval
+                    }
+                    // this.links.push({source: this._getsertAnchorFor(target),
+                    // target: target, linkStrength: 1.0});
                 this.nodes.push(target);
             }
 
@@ -531,15 +571,16 @@ function hideMessage () {
 
         step: function() {
             // Step the simulation
-            this.nodes.forEach(function (n) {
+            this.nodes.forEach(function(n) {
                 n.age++;
             });
 
             this.get(this.TARGETS)
                 .filter(function(t) {
                     return t.age > this.targetMaxAge ||
-                        "arrivalAge" in t && t["arrivalAge"] + 40 < t.age; }, this)
-                .forEach(function (t) {
+                        "arrivalAge" in t && t["arrivalAge"] + 40 < t.age;
+                }, this)
+                .forEach(function(t) {
                     this._remove(t);
                 }, this);
         },
@@ -563,13 +604,17 @@ function hideMessage () {
                         that.get(that.ATTACKS).forEach(function(d) {
                             var scale = 0.1;
                             d.x += scale * (d.cx - d.x) * e.alpha;
-                            d.y += scale * (d.cy - d.y) * e.alpha; });
+                            d.y += scale * (d.cy - d.y) * e.alpha;
+                        });
 
                         that.get(that.TARGETS).forEach(function(d) {
                             //DEBUGGING
                             // if (!targetTrack) targetTrack = d.id;
                             // Update the target's path
-                            d.path.unshift({x: d.x, y: d.y});
+                            d.path.unshift({
+                                x: d.x,
+                                y: d.y
+                            });
                             if (d.path.length > that.pathLength)
                                 d.path.pop();
 
@@ -583,7 +628,7 @@ function hideMessage () {
 
                                 if (v <= toTarget) {
                                     var theta = Math.atan2(d.cy - d.y, d.cx - d.x);
-                                        //r = v / d.h;
+                                    //r = v / d.h;
                                     d.x += v * Math.cos(theta);
                                     d.y += v * Math.sin(theta);
                                 } else {
@@ -608,9 +653,9 @@ function hideMessage () {
     // An abstract model for caching and querying city <=> city links
     var LinksModel = {
         // {ORIGINCOUNTRY: {ORIGINCITY: {TRGTCOUNTRY: {TRGTCOUNTRY: {DPORT: COUNT}}}}}
-	    // Created in via .extend: _links: {},
+        // Created in via .extend: _links: {},
         // {COUNTRY: {CITY: {latitude: LAT, longitude: LON}}}
-	    _locs: {},
+        _locs: {},
 
         insertLink: function(origin, target, port) {
             if (!(origin.country in this._links)) {
@@ -621,7 +666,7 @@ function hideMessage () {
                 this._links[origin.country][origin.city] = {};
             }
 
-	        var originLinks = this._links[origin.country][origin.city];
+            var originLinks = this._links[origin.country][origin.city];
             if (!(target.country in originLinks)) {
                 originLinks[target.country] = {};
             }
@@ -630,7 +675,7 @@ function hideMessage () {
                 originLinks[target.country][target.city] = {};
             }
 
-	        var targetLinks = originLinks[target.country][target.city]
+            var targetLinks = originLinks[target.country][target.city]
             if (!(port in targetLinks)) {
                 targetLinks[port] = 1;
             } else {
@@ -657,7 +702,7 @@ function hideMessage () {
 
             if (target2[port] > 1) {
                 target2[port]--;
-            } else if (target2[port] !== undefined){
+            } else if (target2[port] !== undefined) {
                 delete target2[port];
             }
         },
@@ -668,8 +713,10 @@ function hideMessage () {
             }
 
             if (!(loc.city in this._locs)) {
-                this._locs[loc.country][loc.city] =
-                    {latitude: loc.latitude, longitude: loc.longitude};
+                this._locs[loc.country][loc.city] = {
+                    latitude: loc.latitude,
+                    longitude: loc.longitude
+                };
             }
         },
 
@@ -698,11 +745,11 @@ function hideMessage () {
 
         _distanceBetween: function(pt1, pt2) {
             return Math.sqrt(Math.pow(pt1[0] - pt2[0], 2) +
-                             Math.pow(pt1[1] - pt2[1], 2));
+                Math.pow(pt1[1] - pt2[1], 2));
         },
 
         getCity: function(country, city) {
-            if (country in this._locs && city in this._locs[country] ) {
+            if (country in this._locs && city in this._locs[country]) {
                 var loc = this._locs[country][city],
                     pt = projection([loc.longitude, loc.latitude]),
                     info = {
@@ -710,7 +757,8 @@ function hideMessage () {
                         city: city,
                         latitude: loc.latitude,
                         longitude: loc.longitude,
-                        pt: pt};
+                        pt: pt
+                    };
 
                 if (country in this._links && city in this._links[country]) {
                     info.counts = this._links[country][city];
@@ -758,7 +806,7 @@ function hideMessage () {
             return closest
         },
 
-        total: function (counts) {
+        total: function(counts) {
             // Total up a counts array, recursive
             if (isNumber(counts)) {
                 return counts;
@@ -779,15 +827,23 @@ function hideMessage () {
                 if (!city.counts[country]) continue;
                 for (var cityKey in city.counts[country]) {
                     var info = this.getCity(country, cityKey),
-                    counts = city.counts[country][cityKey];
+                        counts = city.counts[country][cityKey];
 
                     if (!info || !counts || !Object.keys(counts).length) continue;
 
                     for (var service in counts) {
                         var r = circleScale(counts[service]),
                             color = colorizer(service),
-                            source = { x: city.pt[0], y: city.pt[1], r: r },
-                            target = { x: info.pt[0], y: info.pt[1], r: r };
+                            source = {
+                                x: city.pt[0],
+                                y: city.pt[1],
+                                r: r
+                            },
+                            target = {
+                                x: info.pt[0],
+                                y: info.pt[1],
+                                r: r
+                            };
 
                         if (strokeTarget) {
                             source.strokeStyle = color;
@@ -811,7 +867,9 @@ function hideMessage () {
                     }
                 }
             }
-            return links.sort(function(l1, l2) { return l2.count - l1.count; });
+            return links.sort(function(l1, l2) {
+                return l2.count - l1.count;
+            });
         },
 
         dPortLinks: function(service) {
@@ -851,58 +909,88 @@ function hideMessage () {
     var linkModels = {
         origins: LinksModel.extend({
             insert: function(d) {
-                this.insertLink(
-                    {country: d.country, city: d.city},
-                    {country: d.country2, city: d.city2},
+                this.insertLink({
+                        country: d.country,
+                        city: d.city
+                    }, {
+                        country: d.country2,
+                        city: d.city2
+                    },
                     d.service);
 
-                this.insertLoc(
-                    {country: d.country,
-                     city: d.city,
-                     latitude: d.latitude,
-                     longitude: d.longitude});
+                this.insertLoc({
+                    country: d.country,
+                    city: d.city,
+                    latitude: d.latitude,
+                    longitude: d.longitude
+                });
             },
             remove: function(d) {
-                this.removeLink(
-                    {country: d.country, city: d.city},
-                    {country: d.country2, city: d.city2},
+                this.removeLink({
+                        country: d.country,
+                        city: d.city
+                    }, {
+                        country: d.country2,
+                        city: d.city2
+                    },
                     d.service);
 
-                this.removeLoc(
-                    {country: d.country,
-                     city: d.city,
-                     latitude: d.latitude,
-                     longitude: d.longitude}, {country: d.country, city: d.city},
-                    {country: d.country2, city: d.city2},
+                this.removeLoc({
+                        country: d.country,
+                        city: d.city,
+                        latitude: d.latitude,
+                        longitude: d.longitude
+                    }, {
+                        country: d.country,
+                        city: d.city
+                    }, {
+                        country: d.country2,
+                        city: d.city2
+                    },
                     d.service);
             }
         }),
 
         targets: LinksModel.extend({
             insert: function(d) {
-                this.insertLink(
-                    {country: d.country2, city: d.city2},
-                    {country: d.country, city: d.city},
+                this.insertLink({
+                        country: d.country2,
+                        city: d.city2
+                    }, {
+                        country: d.country,
+                        city: d.city
+                    },
                     d.service);
 
-                this.insertLoc(
-                    {country: d.country2,
-                     city: d.city2,
-                     latitude: d.latitude2,
-                     longitude: d.longitude2});
+                this.insertLoc({
+                    country: d.country2,
+                    city: d.city2,
+                    latitude: d.latitude2,
+                    longitude: d.longitude2
+                });
             },
             remove: function(d) {
-                this.removeLink(
-                    {country: d.country2, city: d.city2},
-                    {country: d.country, city: d.city},
+                this.removeLink({
+                        country: d.country2,
+                        city: d.city2
+                    }, {
+                        country: d.country,
+                        city: d.city
+                    },
                     d.service);
 
-                this.removeLoc(
-                    {country: d.country2,
-                     city: d.city2,
-                     latitude: d.latitude2,
-                     longitude: d.longitude2}, {country: d.country2, city: d.city2},
-                    {country: d.country, city: d.city},
+                this.removeLoc({
+                        country: d.country2,
+                        city: d.city2,
+                        latitude: d.latitude2,
+                        longitude: d.longitude2
+                    }, {
+                        country: d.country2,
+                        city: d.city2
+                    }, {
+                        country: d.country,
+                        city: d.city
+                    },
                     d.service);
             }
         })
@@ -914,6 +1002,7 @@ function hideMessage () {
         _iso2: undefined,
         _iso3: undefined,
         _countries: undefined,
+        _cn_countries: undefined,
 
         push: function(country) {
             // Push a new country
@@ -921,6 +1010,7 @@ function hideMessage () {
             if (country.iso2) this._iso2[country.iso2] = country;
             if (country.iso3) this._iso3[country.iso3] = country;
             if (country.country) this._countries[country.country] = country;
+            if (country.cn_country) this._cn_countries[country.cn_country] = country;
         },
 
         set: function(raw) {
@@ -928,7 +1018,10 @@ function hideMessage () {
             this._iso2 = {};
             this._iso3 = {};
             this._countries = {};
-            for (var i = 0; i < +raw.length; i++) { this.push(raw[i]); };
+            this._cn_countries = {};
+            for (var i = 0; i < +raw.length; i++) {
+                this.push(raw[i]);
+            };
         },
 
         getByIso2: function(iso2) {
@@ -941,6 +1034,10 @@ function hideMessage () {
 
         getByCountry: function(country) {
             return this._countries[country];
+        },
+
+        getByCnCountry: function (country) {
+            return this._cn_countries[country];
         }
     }
 
@@ -963,12 +1060,16 @@ function hideMessage () {
 
     // Allows for consistent scaling of drawn elements
     var logScale = d3.scale.log()
-         .domain([1, 200])
-         .range([1, 10]);
+        .domain([1, 200])
+        .range([1, 10]);
 
 
-    var lineScale = function(x) { return logScale(x) };
-    var circleScale = function(x) { return Math.ceil(1.4 * logScale(x)) };
+    var lineScale = function(x) {
+        return logScale(x)
+    };
+    var circleScale = function(x) {
+        return Math.ceil(1.4 * logScale(x))
+    };
     var colorScale = (function() {
         var log = d3.scale.log()
             .domain([1, 600])
@@ -991,9 +1092,11 @@ function hideMessage () {
 
                 getRadius: function(d) {
                     // Given a node, return the radius
-                    var growthEnd = 60, growthMax = 80,
+                    var growthEnd = 60,
+                        growthMax = 80,
                         growthStep = growthMax / growthEnd,
-                        shrinkEnd = 120, shrinkMin = 20,
+                        shrinkEnd = 120,
+                        shrinkMin = 20,
                         shrinkStep = (growthMax - shrinkMin) / (shrinkEnd - growthEnd);
 
                     if (d.age >= 0 && d.age < growthEnd) {
@@ -1018,8 +1121,8 @@ function hideMessage () {
                             var c = d3.rgb(colorizer(n.service)),
                                 r = that.getRadius(n);
                             context.drawImage(particler(c.r, c.g, c.b, 1),
-                                              n.x - r / 2, n.y - r / 2, r, r);
-                    });
+                                n.x - r / 2, n.y - r / 2, r, r);
+                        });
 
                 }
             },
@@ -1036,13 +1139,13 @@ function hideMessage () {
                     for (var i = 0; i < nodeModel.nodes.length; i++) {
                         var n = nodeModel.nodes[i];
                         if (n.type === nodeModel.ATTACKS && n.age < this.duration) {
-                           context.globalAlpha = this.scaleOpacity(n.age);
-                           context.strokeStyle = colorizer(n.service);
-                           context.lineWidth = 3;
-                           context.beginPath();
-                           context.arc(n.x, n.y, this.scaleRadius(n.age),
-                                       0, 2 * pi);
-                           context.stroke();
+                            context.globalAlpha = this.scaleOpacity(n.age);
+                            context.strokeStyle = colorizer(n.service);
+                            context.lineWidth = 3;
+                            context.beginPath();
+                            context.arc(n.x, n.y, this.scaleRadius(n.age),
+                                0, 2 * pi);
+                            context.stroke();
                         }
                     }
                 }
@@ -1064,7 +1167,8 @@ function hideMessage () {
                     for (var i = 0; i < cities.length; i++) {
                         var total = linkModels.origins.total(cities[i].counts),
                             latlng = projection([cities[i].longitude,
-                                                 cities[i].latitude]),
+                                cities[i].latitude
+                            ]),
                             r = ceil(circleScale(total));
                         context.beginPath();
                         context.arc(latlng[0], latlng[1], r, 0, pi * 2);
@@ -1090,7 +1194,8 @@ function hideMessage () {
                     for (var i = 0; i < cities.length; i++) {
                         var total = linkModels.targets.total(cities[i].counts),
                             latlng = projection([cities[i].longitude,
-                                                 cities[i].latitude]),
+                                cities[i].latitude
+                            ]),
                             r = ceil(circleScale(total));
                         context.beginPath();
                         context.arc(latlng[0], latlng[1], r, 0, pi * 2);
@@ -1116,7 +1221,7 @@ function hideMessage () {
                         .forEach(function(n) {
                             var c = d3.rgb(colorizer(n.service)),
                                 afterArrival = n.age - n["arrivalAge"];
-                                r = 10;
+                            r = 10;
 
                             if ("arrivalAge" in n) {
                                 var r = this.impactRadiusScale(afterArrival);
@@ -1152,7 +1257,7 @@ function hideMessage () {
                             }
 
                             ctx.drawImage(particler(c.r, c.g, c.b, 1),
-                                              n.x - r / 2, n.y - r / 2, r, r);
+                                n.x - r / 2, n.y - r / 2, r, r);
 
                         }, this);
                 }
@@ -1181,7 +1286,7 @@ function hideMessage () {
                         context.lineWidth = 2;
                         context.beginPath();
                         context.arc(this.data[i].source.x, this.data[i].source.y,
-                                    this.data[i].source.r || 5, 0, pi * 2);
+                            this.data[i].source.r || 5, 0, pi * 2);
                         if (this.data[i].source.fillStyle) {
                             context.fillStyle = this.data[i].source.fillStyle;
                             context.fill();
@@ -1194,7 +1299,7 @@ function hideMessage () {
                         context.beginPath();
                         context.fillStyle = this.data[i].target.fillStyle || "#fff";
                         context.arc(this.data[i].target.x, this.data[i].target.y,
-                                    this.data[i].target.r || 5, 0, pi * 2);
+                            this.data[i].target.r || 5, 0, pi * 2);
                         if (this.data[i].target.fillStyle) {
                             context.fillStyle = this.data[i].target.fillStyle;
                             context.fill();
@@ -1221,7 +1326,9 @@ function hideMessage () {
             context.restore();
         },
 
-        _drawSort: function (d1, d2) { return d1.order || 0 - d2.order || 0; },
+        _drawSort: function(d1, d2) {
+            return d1.order || 0 - d2.order || 0;
+        },
 
         redraw: function() {
             this.drawStart = new Date().getTime();
@@ -1241,7 +1348,9 @@ function hideMessage () {
 
             if (nextFrame < 0) nextFrame = 0;
 
-            this._timeout = setTimeout(function() { that.redraw() }, nextFrame);
+            this._timeout = setTimeout(function() {
+                that.redraw()
+            }, nextFrame);
         },
 
         start: function(interval) {
@@ -1256,6 +1365,7 @@ function hideMessage () {
     // Event handling for setting the painter's links
     var _ = (function() {
         var previous;
+
         function cityKey(n) {
             return [n.country, n.city];
         }
@@ -1286,8 +1396,7 @@ function hideMessage () {
                     painter.drawings.links.data =
                         model.cityToLinks(nearest, strokeOrigin, strokeTarget);
                     displayLabel.set(msg +
-                                     (nearest.city === "" ? "<unknown>" : nearest.city)
-                                     + ", " + countryModel.getByIso2(nearest.country).country);
+                        (nearest.city === "" ? "<unknown>" : nearest.city) + ", " + countryModel.getByIso2(nearest.country).country);
                 }
             } else {
                 previous = key;
@@ -1301,66 +1410,67 @@ function hideMessage () {
      * The legend
      */
 
-    var _ = (function() {
-        var attack = d3.select("#particle-legend-content"),
-            width = 20, height = 20;
-
-        attack.append("canvas")
-            .attr("width", width * 1)
-            .attr("height", height * 1)
-            .node().getContext("2d")
-            .drawImage(particler(255, 255, 255, 1),
-                       width / 8, height / 8, width, height);
-        /*var legend = d3.select("#legend-container")
-            .append("div")
-            .attr("id", "legend");
-
-        var attack = legend.append("div"),
-            width = 20, height = 20;
-        attack.append("h4").text("Each particle represents an attack.");
-        attack.append("canvas")
-            .attr("width", width * 2)
-            .attr("height", height * 2)
-            .node().getContext("2d")
-            .drawImage(particler(255, 255, 255, 1),
-                       width / 2, height / 2, width, height);
-
-        var clusters = legend.append("div").attr("class", "clusters");
-        clusters.append("h4").text("Attack origins are grouped into clusters.");
-
-        var height = 30;
-        var clusterList = clusters.append("ul").selectAll("li")
-            .data([1, 10, 200])
-          .enter().append("li");
-        clusterList.append("svg")
-            .style("width", function(d) { return circleScale(d) * 2; })
-            .style("height", height)
-          .append("circle")
-            .attr("fill", "white")
-            .attr("cy", function(d) { return height - circleScale(d); })
-            .attr("cx", function(d) { return circleScale(d); })
-            .attr("r", function(d) { return circleScale(d); });
-        clusterList.append("p")
-            .text(function(d) { return d; });
-
-        var countryColors = legend.append("div").attr("class", "country-colors");
-        countryColors.append("h4").text("Countries are shaded in as they're attacked.");
-
-        var r = 4;
-        var countryColorList = countryColors.append("ul").selectAll("li")
-            .data([1, 5, 25, 100, 500])
-          .enter().append("li");
-        countryColorList.append("svg")
-            .style("width", r * 2)
-            .style("height", r * 2)
-          .append("circle")
-            .attr("fill", function(d) { return settings.countryColor(d); })
-            .attr("cy", r)
-            .attr("cx", r)
-            .attr("r", r);
-        countryColorList.append("p")
-            .text(function(d) { return d; });*/
-    })();
+    // var _ = (function() {
+    //     var attack = d3.select("#particle-legend-content"),
+    //         width = 20,
+    //         height = 20;
+    //
+    //     attack.append("canvas")
+    //         .attr("width", width * 1)
+    //         .attr("height", height * 1)
+    //         .node().getContext("2d")
+    //         .drawImage(particler(255, 255, 255, 1),
+    //             width / 8, height / 8, width, height);
+    //     /*var legend = d3.select("#legend-container")
+    //         .append("div")
+    //         .attr("id", "legend");
+    //
+    //     var attack = legend.append("div"),
+    //         width = 20, height = 20;
+    //     attack.append("h4").text("Each particle represents an attack.");
+    //     attack.append("canvas")
+    //         .attr("width", width * 2)
+    //         .attr("height", height * 2)
+    //         .node().getContext("2d")
+    //         .drawImage(particler(255, 255, 255, 1),
+    //                    width / 2, height / 2, width, height);
+    //
+    //     var clusters = legend.append("div").attr("class", "clusters");
+    //     clusters.append("h4").text("Attack origins are grouped into clusters.");
+    //
+    //     var height = 30;
+    //     var clusterList = clusters.append("ul").selectAll("li")
+    //         .data([1, 10, 200])
+    //       .enter().append("li");
+    //     clusterList.append("svg")
+    //         .style("width", function(d) { return circleScale(d) * 2; })
+    //         .style("height", height)
+    //       .append("circle")
+    //         .attr("fill", "white")
+    //         .attr("cy", function(d) { return height - circleScale(d); })
+    //         .attr("cx", function(d) { return circleScale(d); })
+    //         .attr("r", function(d) { return circleScale(d); });
+    //     clusterList.append("p")
+    //         .text(function(d) { return d; });
+    //
+    //     var countryColors = legend.append("div").attr("class", "country-colors");
+    //     countryColors.append("h4").text("Countries are shaded in as they're attacked.");
+    //
+    //     var r = 4;
+    //     var countryColorList = countryColors.append("ul").selectAll("li")
+    //         .data([1, 5, 25, 100, 500])
+    //       .enter().append("li");
+    //     countryColorList.append("svg")
+    //         .style("width", r * 2)
+    //         .style("height", r * 2)
+    //       .append("circle")
+    //         .attr("fill", function(d) { return settings.countryColor(d); })
+    //         .attr("cy", r)
+    //         .attr("cx", r)
+    //         .attr("r", r);
+    //     countryColorList.append("p")
+    //         .text(function(d) { return d; });*/
+    // })();
 
     /*
      * Stats the state machine
@@ -1377,7 +1487,8 @@ function hideMessage () {
 
         this.data = function() {
             // Get the data as a list
-            if (params.data) return params.data(this.state); else this.state;
+            if (params.data) return params.data(this.state);
+            else this.state;
         }
 
         this.redraw = function() {
@@ -1387,7 +1498,9 @@ function hideMessage () {
                 this.elt.selectAll(this.tag)
                     .data(this.data())
                     .enter().append(this.tag)
-                    .text(function(d) { return d});
+                    .text(function(d) {
+                        return d
+                    });
             }
         }
     }
@@ -1409,7 +1522,10 @@ function hideMessage () {
         stats: [
             new Stats({
                 // Color countries
-                state: {sources: {}, targets: {}},
+                state: {
+                    sources: {},
+                    targets: {}
+                },
 
                 insert: function(d, state) {
                     function pushState(m, key) {
@@ -1440,7 +1556,7 @@ function hideMessage () {
                     this.updated = incoming.country;
                     if (state.has(incoming.country)) {
                         state.set(incoming.country,
-                                  state.get(incoming.country) + 1);
+                            state.get(incoming.country) + 1);
                     } else {
                         state.set(incoming.country, 1);
                     }
@@ -1448,19 +1564,23 @@ function hideMessage () {
 
                 redraw: function() {
                     var data = this.state.entries()
-                        .sort(function(d1, d2) { return d2.value - d1.value; })
+                        .sort(function(d1, d2) {
+                            return d2.value - d1.value;
+                        })
                         .slice(0, settings.topTableRows),
-                    updated = this.updated;
+                        updated = this.updated;
 
                     var rows = d3.select("#left-data").selectAll("tr.row")
-                        .data(data, function(d) { return d.key; });
+                        .data(data, function(d) {
+                            return d.key;
+                        });
                     rows.enter()
                         .append("tr")
                         .attr("class", "row")
                         .on("mouseenter", function(d) {
                             var country = countryModel.getByIso2(d.key);
                             displayLabel.set("Attacks originating from: " +
-                                             (country ? country.country : d.key));
+                                (country ? country.country : d.key));
 
                             // On mouseenter, use all country data to create links
                             painter.drawings.links.data =
@@ -1474,10 +1594,14 @@ function hideMessage () {
                         .on("mouseleave", function() {
                             displayLabel.clear();
                         });
-                    rows.sort(function(d1, d2) { return d2.value - d1.value; });
+                    rows.sort(function(d1, d2) {
+                        return d2.value - d1.value;
+                    });
                     rows.exit().remove();
 
-                    rows.filter(function(d) {return d.key == updated})
+                    rows.filter(function(d) {
+                            return d.key == updated
+                        })
                         .style("color", settings.triggerColor)
                         .transition()
                         .duration(1000)
@@ -1488,12 +1612,16 @@ function hideMessage () {
                             var country = countryModel.getByIso2(d.key);
                             return [
                                 '<div class="bar" style="width: ' +
-                                    settings.tableBarWidth(d.value + 1) + '"></div>',
+                                settings.tableBarWidth(d.value + 1) + '"></div>',
                                 spanWrap(d.value, ["numeric"]),
                                 flagTag(d.key),
-                                (country ? country.country : d.key)]; });
+                                (country ? country.country : d.key)
+                            ];
+                        });
                     cols.enter().append("td");
-                    cols.html(function(d) { return d; });
+                    cols.html(function(d) {
+                        return d;
+                    });
                     cols.exit().remove();
                 }
             }),
@@ -1506,7 +1634,7 @@ function hideMessage () {
                     this.updated = incoming.country2;
                     if (state.has(incoming.country2)) {
                         state.set(incoming.country2,
-                                  state.get(incoming.country2) + 1);
+                            state.get(incoming.country2) + 1);
                     } else {
                         state.set(incoming.country2, 1);
                     }
@@ -1514,19 +1642,23 @@ function hideMessage () {
 
                 redraw: function() {
                     var data = this.state.entries()
-                        .sort(function(d1, d2) { return d2.value - d1.value; })
+                        .sort(function(d1, d2) {
+                            return d2.value - d1.value;
+                        })
                         .slice(0, settings.topTableRows),
-                    updated = this.updated;
+                        updated = this.updated;
 
                     var rows = d3.select("#right-data").selectAll("tr.row")
-                        .data(data, function(d) { return d.key; });
+                        .data(data, function(d) {
+                            return d.key;
+                        });
                     rows.enter()
                         .append("tr")
                         .attr("class", "row")
                         .on("mouseenter", function(d) {
                             var country = countryModel.getByIso2(d.key);
                             displayLabel.set("Attacks targeting: " +
-                                             (country ? country.country : d.key));
+                                (country ? country.country : d.key));
 
                             // On mouseenter, use all country data to create links
                             painter.drawings.links.data =
@@ -1540,10 +1672,14 @@ function hideMessage () {
                         .on("mouseleave", function() {
                             displayLabel.clear();
                         });
-                    rows.sort(function(d1, d2) { return d2.value - d1.value; });
+                    rows.sort(function(d1, d2) {
+                        return d2.value - d1.value;
+                    });
                     rows.exit().remove();
 
-                    rows.filter(function(d) {return d.key == updated})
+                    rows.filter(function(d) {
+                            return d.key == updated
+                        })
                         .style("color", "blue")
                         .transition()
                         .duration(1000)
@@ -1554,95 +1690,112 @@ function hideMessage () {
                             var country = countryModel.getByIso2(d.key);
                             return [
                                 '<div class="bar" style="width: ' +
-                                    settings.tableBarWidth(d.value + 1) + '"></div>',
+                                settings.tableBarWidth(d.value + 1) + '"></div>',
                                 spanWrap(d.value, ["numeric"]),
                                 flagTag(d.key),
-                                (country ? country.country : d.key)]; });
+                                (country ? country.country : d.key)
+                            ];
+                        });
                     cols.enter().append("td");
-                    cols.html(function(d) { return d; });
+                    cols.html(function(d) {
+                        return d;
+                    });
                     cols.exit().remove();
                 }
             }),
 
-            new Stats(
-                {state: d3.map(),
+            new Stats({
+                state: d3.map(),
 
-                 insert: function(incoming) {
-                     this.updated = incoming.service;
-                     if (this.state.has(incoming.service)) {
-                         this.state.set(incoming.service,
-                                        this.state.get(incoming.service) + 1);
-                     } else {
-                         this.state.set(incoming.service, 1);
-                     }
-                 },
+                insert: function(incoming) {
+                    this.updated = incoming.service;
+                    if (this.state.has(incoming.service)) {
+                        this.state.set(incoming.service,
+                            this.state.get(incoming.service) + 1);
+                    } else {
+                        this.state.set(incoming.service, 1);
+                    }
+                },
 
-                 redraw: function() {
-                     var data = this.state.entries()
-                         .sort(function(d1, d2) { return d2.value - d1.value; })
-                         .slice(0, settings.portTableRows),
-                         updated = this.updated;
+                redraw: function() {
+                    var data = this.state.entries()
+                        .sort(function(d1, d2) {
+                            return d2.value - d1.value;
+                        })
+                        .slice(0, settings.portTableRows),
+                        updated = this.updated;
 
-                     var rows = d3.select("#bottom-right-data").selectAll("tr.row")
-                         // XXX - I'm not sure why d is undef the first time through.
-                         .data(data, function(d, i) { return d ? d.key : i; });
-                     rows.enter()
-                         .append("tr")
-                         .attr("class", "row")
-                         .on("mouseenter", function(d) {
-                             displayLabel.set("Attacks made over: " +
-                                              (d.service ? d.service : "unknown") +
-                                              " [" + d.key + "]");
-                             painter.drawings.links.data =
-                                 linkModels.origins.dPortLinks(d.key).map(function(c) {
-                                     var r = circleScale(c.count),
-                                         color = colorizer(c.service);
-                                     return {
-                                         source: {
-                                             x: c.source.pt[0],
-                                             y: c.source.pt[1],
-                                             fillStyle: color,
-                                             r: r
-                                         },
-                                         target: {
-                                             x: c.target.pt[0],
-                                             y: c.target.pt[1],
-                                             strokeStyle: color,
-                                             r: r
-                                         },
-                                         width: lineScale(c.count),
-                                         color: colorizer(c.service)
-                                     }
-                                 });
-                         })
-                         .on("mouseleave", function(d) {
-                             displayLabel.clear();
-                         })
-                     rows.sort(function(d1, d2) { return d2.value - d1.value; });
-                     rows.exit().remove();
+                    var rows = d3.select("#bottom-right-data").selectAll("tr.row")
+                        // XXX - I'm not sure why d is undef the first time through.
+                        .data(data, function(d, i) {
+                            return d ? d.key : i;
+                        });
+                    rows.enter()
+                        .append("tr")
+                        .attr("class", "row")
+                        .on("mouseenter", function(d) {
+                            displayLabel.set("Attacks made over: " +
+                                (d.service ? d.service : "unknown") +
+                                " [" + d.key + "]");
+                            painter.drawings.links.data =
+                                linkModels.origins.dPortLinks(d.key).map(function(c) {
+                                    var r = circleScale(c.count),
+                                        color = colorizer(c.service);
+                                    return {
+                                        source: {
+                                            x: c.source.pt[0],
+                                            y: c.source.pt[1],
+                                            fillStyle: color,
+                                            r: r
+                                        },
+                                        target: {
+                                            x: c.target.pt[0],
+                                            y: c.target.pt[1],
+                                            strokeStyle: color,
+                                            r: r
+                                        },
+                                        width: lineScale(c.count),
+                                        color: colorizer(c.service)
+                                    }
+                                });
+                        })
+                        .on("mouseleave", function(d) {
+                            displayLabel.clear();
+                        })
+                    rows.sort(function(d1, d2) {
+                        return d2.value - d1.value;
+                    });
+                    rows.exit().remove();
 
-                     rows.filter(function(d) {return d.key == updated})
-                         .style("color", function(d) { return colorizer(d.key); })
-                         .transition()
-                         .duration(1000)
-                         .style("color", "white");
+                    rows.filter(function(d) {
+                            return d.key == updated
+                        })
+                        .style("color", function(d) {
+                            return colorizer(d.key);
+                        })
+                        .transition()
+                        .duration(1000)
+                        .style("color", "white");
 
-                     var cols = rows.selectAll("td")
-                         .data(function(d) {
-                             return [
+                    var cols = rows.selectAll("td")
+                        .data(function(d) {
+                            return [
                                 '<div class="bar" style="width: ' +
-                                    settings.tableBarWidth(d.value + 1) + '"></div>',
-                                 spanWrap(d.value, ["numeric"]),
-                                 '<span class="port-circle" style="color:' + colorizer(d.key) +
-                                     '">●</span>',
-                                 d.key
-			     ]; });
-                     //function(d) { return d; });
-                     cols.enter().append("td");
-                     cols.html(function(d) { return d; });
-                     cols.exit().remove();
-                 }
-                }),
+                                settings.tableBarWidth(d.value + 1) + '"></div>',
+                                spanWrap(d.value, ["numeric"]),
+                                '<span class="port-circle" style="color:' + colorizer(d.key) +
+                                '">●</span>',
+                                d.key
+                            ];
+                        });
+                    //function(d) { return d; });
+                    cols.enter().append("td");
+                    cols.html(function(d) {
+                        return d;
+                    });
+                    cols.exit().remove();
+                }
+            }),
 
             new Stats({
                 // #console stats manager
@@ -1659,35 +1812,43 @@ function hideMessage () {
                 redraw: function() {
                     var that = this;
                     var rows = d3.select("#events-data").selectAll("tr.row")
-                        .data(this.state, function(d) { return d.id; });
+                        .data(this.state, function(d) {
+                            return d.id;
+                        });
 
                     rows.enter().append("tr")
-                        .style("color", function(d) { return colorizer(d.service); })
+                        .style("color", function(d) {
+                            return colorizer(d.service);
+                        })
                         .attr("class", "row");
                     rows.exit().remove();
 
                     var cols = rows.selectAll("td")
                         .data(function(d) {
+                            // console.log(d);
                             return [
                                 d.datetime,
                                 spanWrap(
                                     (d.city === "" ? "unknown" : d.city) + ", " +
-                                        countryModel.getByIso2(d.country).country,
-                                    ["location", "overflow"]),
+                                    countryModel.getByIso2(d.country).country, ["location", "overflow"]),
                                 d.md5,
                                 d.hostip,
                                 spanWrap(
                                     (d.city2 === "" ? "unknown" : d.city2) + ", " +
-                                    countryModel.getByIso2(d.country2).country,
-                                    ["location", "overflow", "numeric"]),
-                                d.service]; });
+                                    countryModel.getByIso2(d.country2).country, ["location", "overflow", "numeric"]),
+                                d.service
+                            ];
+                        });
                     cols.enter().append("td")
-                        .html(function(d) { return d; });
+                        .html(function(d) {
+                            return d;
+                        });
                     cols.exit().remove();
                 }
 
             })
-        ]};
+        ]
+    };
 
     // Keep track of the rate
     var rateTicker = {
@@ -1700,7 +1861,10 @@ function hideMessage () {
         opacity: d3.time.scale().range([0, 1]),
 
         push: function(d) {
-            this.data.push({date: Date.now(), key: d.service});
+            this.data.push({
+                date: Date.now(),
+                key: d.service
+            });
         },
 
         clean: function(toDate) {
@@ -1719,35 +1883,48 @@ function hideMessage () {
             this.opacity.domain(range);
 
             var simpleLine = function(h) {
-               return function(d) {
+                return function(d) {
                     var cx = that.x(d.date);
-                    return d3.svg.line()([[cx, 0], [cx, h || 20]])}};
+                    return d3.svg.line()([
+                        [cx, 0],
+                        [cx, h || 20]
+                    ])
+                }
+            };
             var ticks = this.graph.selectAll("path.tick")
-                .data(this.data, function(d) { return d.date; });
+                .data(this.data, function(d) {
+                    return d.date;
+                });
 
             ticks.enter().append("path")
                 .attr("class", "tick")
                 .attr("d", simpleLine())
-                .style("stroke", function(d) { return colorizer(d.key); });
+                .style("stroke", function(d) {
+                    return colorizer(d.key);
+                });
 
             ticks.exit().remove();
 
             ticks
-                //.transition().duration(30)
+            //.transition().duration(30)
                 .attr("d", simpleLine())
-                .style("opacity", function(d) { return that.opacity(d.date); });
+                .style("opacity", function(d) {
+                    return that.opacity(d.date);
+                });
         },
 
         start: function() {
             var that = this;
-            setInterval(function() { that.step(); }, 50);
+            setInterval(function() {
+                that.step();
+            }, 50);
         }
     };
 
 
     var wsDiscTime = 0;
 
-    function start(workerFile) {
+    function start(countryCodes, workerFile, esHost) {
         // var webSocket = new WebSocket(loc || settings.wsHost);
 
         var worker = new Worker(workerFile || settings.workerFile);
@@ -1804,7 +1981,9 @@ function hideMessage () {
                 }
             }
         };
-        pauser.elt.on("click", function() { pauser.toggle(); });
+        pauser.elt.on("click", function() {
+            pauser.toggle();
+        });
 
         // webSocket.onopen = function() {
         //     wsDiscTime = 0;
@@ -1812,7 +1991,7 @@ function hideMessage () {
         //     webSocket.send(psk || settings.psk);
         // };
 
-        worker.onmessage = function (evt) {
+        worker.onmessage = function(evt) {
             if (!evt) {
                 return;
             };
@@ -1836,12 +2015,87 @@ function hideMessage () {
 
             function startWorker(data) {
                 d3.select("#events-data").selectAll("tr.row").remove();
-                self.postMessage({'cmd': 'start', 'msg': {}});
+
+                var now = new Date();
+                var lastTimestamp = (settings.lastTimestamp || now.toISOString());
+
+                var searchParam = {
+                    'query': {
+                        index: 'saas_*',
+                        size: settings.esWindowSize,
+                        //    type: '*',
+                        body: {
+                            "query": {
+                                "filtered": {
+                                    "filter": {
+                                        "and": {
+                                            "filters": [{
+                                                "exists": {
+                                                    "field": "<<attackField>>"
+                                                }
+                                            }, {
+                                                "range": {
+                                                    "<<timeStampField>>": {
+                                                        "gt": "<<lastTimestamp>>",
+                                                        "lte": "now"
+                                                    }
+                                                }
+                                            }],
+                                            "_cache": false
+                                        }
+                                    }
+                                }
+                            },
+                            "sort": {
+                                "<<timeStampField>>": "desc"
+                            }
+                        }
+                    },
+                    'map': {
+                        srcKeys: {
+                            latKey: 'c_ip.location.lat', //攻击来源纬度
+                            lonKey: 'c_ip.location.lon', //攻击来源经度
+                            countryKey: 'c_ip.regionl0', //攻击来源的国家
+                            regionKey: 'c_ip.regionl1', //攻击来源的地区
+                            ipKey: 'c_ip.ip' //攻击来源的IP
+                        },
+                        destKeys: {
+                            latKey: 'c_ip.location.lat', //攻击目标纬度
+                            lonKey: 'c_ip.location.lon', //攻击目标经度
+                            countryKey: 'c_ip.regionl0', //攻击目标的国家
+                            regionKey: 'c_ip.regionl1', //攻击目标的地区
+                            ipKey: 'c_ip.ip' //攻击目标的IP
+                        },
+                        timeStampField: '@timestamp',
+                        attackField: settings.attackField,
+                        lastTimestamp:{regEx: /<<lastTimestamp>>/g,
+                            value: lastTimestamp},
+                        templates: {
+                            timeStampField:{ value: '@timestamp',
+                                regEx: /<<timeStampField>>/g,},
+                            attackField: {regEx: /<<attackField>>/g,
+                                value: settings.attackField,},
+                        }
+                    }
+                };
+
+                self.postMessage({
+                    'cmd': 'start',
+                    'msg': {
+                        'esHost': (esHost || settings.esHost),
+                        // 'index_name': 'saas_20160411',
+                        // 'esWindowSize': settings.esWindowSize,
+                        'search_param': searchParam,
+                        'time_stamp': lastTimestamp,
+                        'settings': workerSettings,
+                    }
+                });
             }
 
             function pushAttack(data) {
                 // Parse the json to a js obj and clean the data
-                var datum = eval("(" + data.content + ")");
+                var datum = JSON.parse(data.content);
+                // console.log(datum);
 
                 if (datum.longitude == 0 && datum.latitude == 0) {
                     datum.longitude = -5;
@@ -1866,6 +2120,15 @@ function hideMessage () {
                     if (country === "USA") {
                         return "US";
                     }
+                    // if (country === "中国") {
+                    //     return "CN";
+                    // }
+                    // console.log(countryModel);
+                    var countryObj;
+                    if (countryObj = countryModel.getByCnCountry(country)) {
+                        // console.log(countryObj);
+                        return countryObj.iso2;
+                    }
                     return country
                 };
 
@@ -1881,15 +2144,16 @@ function hideMessage () {
                 datum.targetY = endLoc[1];
                 datum.id = getID();
                 datum.datetime = (new Date()).toISOString()
-    	        .replace("T", "&ensp;")
-    	        .slice(0, -2);
+                    .replace("T", "&ensp;")
+                    .slice(0, -2);
 
-                console.log(datum);
+                // console.log(datum);
                 pauser.push(datum);
             }
 
             function restartWorker(data) {
                 //try to reconnect in 5 seconds
+
                 var interval = 500;
 
                 wsDiscTime += 500;
@@ -1902,7 +2166,7 @@ function hideMessage () {
                     wsDiscTime = 0;
                 }
 
-                setTimeout(function(){
+                setTimeout(function() {
                     self.terminate();
                     console.log("websocket closed, reconnecting in " + interval + "ms");
                     start(workerFile);
@@ -1915,14 +2179,17 @@ function hideMessage () {
             }
         };
 
-        worker.onerror = function (evt) {
+        worker.onerror = function(evt) {
             console.log([
                 'ERROR: Line ', evt.lineno, ' in ', evt.filename, ': ', evt.message
             ].join(''));
 
         }
 
-        worker.postMessage({'cmd': 'ping', 'msg': ''});
+        worker.postMessage({
+            'cmd': 'ping',
+            'msg': ''
+        });
 
         // webSocket.onmessage = function(evt) {
         //     if (!evt) {
@@ -1971,8 +2238,8 @@ function hideMessage () {
         //     datum.targetY = endLoc[1];
         //     datum.id = getID();
         //     datum.datetime = (new Date()).toISOString()
-	    //     .replace("T", "&ensp;")
-	    //     .slice(0, -2);
+        //     .replace("T", "&ensp;")
+        //     .slice(0, -2);
         //
         //     console.log(datum);
         //     pauser.push(datum);
@@ -2010,14 +2277,19 @@ function hideMessage () {
     queue()
         .defer(d3.json, "data/readme-world.json")
         .defer(d3.csv, "data/country-codes.csv")
-        .await(function (error, world, countryCodes) {
+        .await(function(error, world, countryCodes) {
             // Update the countryModel
             countryModel.set(countryCodes);
-            countryModel.push({iso2: "O1", country: "Mil/Gov"});
+            countryModel.push({
+                iso2: "O1",
+                country: "Mil/Gov"
+            });
 
             // Temporary mapping to key the map
             var mapCodes = {};
-            countryCodes.forEach(function(d) { mapCodes[Number(d.isonum)] = d.iso2; });
+            countryCodes.forEach(function(d) {
+                mapCodes[Number(d.isonum)] = d.iso2;
+            });
 
             // Enter the countries
             svg.append("g")
@@ -2026,15 +2298,17 @@ function hideMessage () {
                 .data(topojson.feature(world, world.objects.countries).features)
                 .enter().insert("path")
                 .attr("class", "country")
-                .attr("id", function(d) { return mapCodes[d.id]; })
-                .attr("fill", settings.countryColor(0))
+                .attr("id", function(d) {
+                    return mapCodes[d.id];
+                })
+                .attr("fill", settings.countryColor(1))
                 .attr("d", path);
 
             // ports = parsePorts(rawPorts);
 
             loadingToggle();
             // var webSocket = start();
-            var webWorker = start();
+            var webWorker = start(countryCodes);
             nodeModel.start();
             painter.start();
             rateTicker.start();
@@ -2047,7 +2321,12 @@ function hideMessage () {
 
     var unknownLoc = projection([-5, -50]);
 
-    d3.selectAll("#unknown-icon").style({'left': unknownLoc[0] - 18, 'top': unknownLoc[1] - 18});
+    d3.selectAll("#unknown-icon").style({
+        'left': unknownLoc[0] - 18,
+        'top': unknownLoc[1] - 18
+    });
 
-    setInterval(function () { prune(); }, 30000);
+    setInterval(function() {
+        prune();
+    }, 30000);
 })(window);

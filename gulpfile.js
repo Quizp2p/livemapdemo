@@ -8,16 +8,31 @@
 
 var config = {
 	jsConcatFiles: [
-		'./src/ipviking.js',
-        './src/presentations.js'
+		'./src/js/d3.v3.js',
+		'./src/js/queue.v1.js',
+		'./src/js/topojson.v1.js',
+        './src/js/moment.js',
+		'./src/js/pym.js',
+		'./src/js/ipviking.js',
+        './src/js/presentations.js'
 	],
+    workerConcatFiles:[
+        './src/js/elasticsearch.js',
+        './src/js/courier.js'
+    ],
+    cssConcatFiles: [
+        './src/styles/flags.css',
+        './src/styles/fonts.css',
+        './src/styles/ipviking.css'
+    ],
 	buildFilesFoldersRemove:[
-		// 'build/scss/',
-		'build/*.js',
-        '!build/*.min.js',
+		'dist/scss/',
+		'dist/js/',
+        'dist/styles/',
 		// 'build/bower.json',
 		// 'build/bower_components/',
-		'build/*.map'
+		'dist/maps/',
+		'dist/china.html'
 	]
 };
 
@@ -37,6 +52,7 @@ var gulp = require('gulp'),
 	concat = require('gulp-concat'),
 	uglify = require('gulp-uglify'),
 	rename = require('gulp-rename'),
+    cleanCSS = require('gulp-clean-css'),
 	del = require('del'),
     proxy = require('http-proxy-middleware');
 
@@ -55,22 +71,51 @@ function errorlog(err){
 // Scripts Tasks
 // ///////////////////////////////////////////////
 
-gulp.task('scripts', function() {
+gulp.task('js', function() {
   return gulp.src(config.jsConcatFiles)
 	.pipe(sourcemaps.init())
 		.pipe(concat('temp.js'))
 		.pipe(uglify())
 		.on('error', errorlog)
 		.pipe(rename('app.min.js'))
-    .pipe(sourcemaps.write('./'))
-    .pipe(gulp.dest('./src'))
+    .pipe(sourcemaps.write('./maps/'))
+    .pipe(gulp.dest('./src/'))
+    .pipe(reload({stream:true}));
+});
 
+gulp.task('worker', function () {
+    return gulp.src(config.workerConcatFiles)
+        .pipe(sourcemaps.init())
+        .pipe(concat('worker.js'))
+        .pipe(uglify())
+        .on('error', errorlog)
+        .pipe(rename('worker.min.js'))
+        .pipe(sourcemaps.write('./maps/'))
+        .pipe(gulp.dest('./src/'))
+        .pipe(reload({stream:true}));
+});
+
+gulp.task('scripts', ['js', 'worker']);
+
+// ////////////////////////////////////////////////
+// Styles Tasks
+// ///////////////////////////////////////////////
+
+gulp.task('styles', function() {
+  return gulp.src(config.cssConcatFiles)
+	.pipe(sourcemaps.init())
+		.pipe(concat('temp.css'))
+		.pipe(cleanCSS())
+		.on('error', errorlog)
+		.pipe(rename('app.min.css'))
+    .pipe(sourcemaps.write('./maps/'))
+    .pipe(gulp.dest('./src/'))
     .pipe(reload({stream:true}));
 });
 
 
 // ////////////////////////////////////////////////
-// Styles Tasks
+// Styles Tasks for SASS
 // ///////////////////////////////////////////////
 //
 // gulp.task('styles', function() {
@@ -96,16 +141,6 @@ gulp.task('html', function(){
     gulp.src('src/**/*.html')
     .pipe(reload({stream:true}));
 });
-
-
-// ////////////////////////////////////////////////
-// HTML Tasks
-// // /////////////////////////////////////////////
-gulp.task('css', function(){
-    gulp.src('scr/**/*.css')
-    .pipe(reload({stream:true}));
-});
-
 
 // ////////////////////////////////////////////////
 // Browser-Sync Tasks
@@ -136,7 +171,7 @@ gulp.task('browser-sync', function() {
 gulp.task('build:serve', function() {
     browserSync({
         server: {
-            baseDir: "./build/",
+            baseDir: "./dist/",
             middleware: [EsProxy]
         }
     });
@@ -150,14 +185,14 @@ gulp.task('build:serve', function() {
 // clean out all files and folders from build folder
 gulp.task('build:cleanfolder', function () {
 	return del([
-		'build/**'
+		'dist/**'
 	]);
 });
 
 // task to create build directory of all files
 gulp.task('build:copy', ['build:cleanfolder'], function(){
     return gulp.src('src/**/*/')
-    .pipe(gulp.dest('build/'));
+    .pipe(gulp.dest('dist/'));
 });
 
 // task to removed unwanted build files
@@ -177,8 +212,8 @@ gulp.task ('watch', function(){
 	// gulp.watch('src/scss/**/*.scss', ['styles']);
 	gulp.watch(['src/**/*.js', '!src/**/*.min.js'], ['scripts']);
   	gulp.watch('src/**/*.html', ['html']);
-    gulp.watch('src/**/*.css', ['css']);
+    gulp.watch(['src/**/*.css', '!src/**/*.min.css'], ['styles']);
 });
 
 
-gulp.task('default', ['scripts', 'css', 'html', 'browser-sync', 'watch']);
+gulp.task('default', ['scripts', 'styles', 'html', 'browser-sync', 'watch']);
